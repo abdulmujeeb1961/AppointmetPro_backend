@@ -51,8 +51,9 @@ class Business(models.Model):
     pan=models.CharField(max_length=20,blank=True)
     timezone = models.CharField(
     max_length=50,
-    default='Asia/Kolkata'
-)
+    default='Asia/Kolkata')
+    require_customer_details=models.BooleanField(default=False)
+    
     
     
     def __str__(self):
