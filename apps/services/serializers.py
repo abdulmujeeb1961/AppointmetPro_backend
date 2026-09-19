@@ -2,6 +2,9 @@ from rest_framework import serializers
 from apps.services.models import Service
 
 class ServiceSerializer(serializers.ModelSerializer):
+    business_name = serializers.CharField(
+        source="business.business_name",
+        read_only=True)
     
     def validate_service_name(self,value):
         # Validation for service_name
@@ -29,10 +32,14 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     def validate(self,attrs):
         business = attrs.get("business")
+        
         service_name = attrs.get("service_name").strip() # strip has been used to delete trailing spaces
 
     # Save the cleaned name back
         attrs["service_name"] = service_name
+        if self.instance and self.instance.service_name == service_name and self.instance.business == business: 
+            return attrs  # No change in service_name or business, so no need to check for duplicates
+        
 
     # Check duplicate within the same business and is case insensative. e.g Hair Cut and hair cut will be treated as same.  __iexact is used for case insensitivity
         if Service.objects.filter(
@@ -54,5 +61,15 @@ class ServiceSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Service
-        fields = '__all__'
-        read_only_fields = ["created_at", "updated_at"]
+        fields = [
+            "id",
+            "business",
+            "business_name",
+            "service_name",
+            "duration_minutes",
+            "price",
+            "display_order",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at","business_name"]

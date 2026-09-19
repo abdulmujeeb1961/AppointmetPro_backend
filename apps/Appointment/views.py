@@ -1,7 +1,9 @@
 from apps.Appointment.models import Appointment
-from apps.Appointment.serializers import AppointmentSerializer
-from rest_framework import viewsets, permissions
+from apps.Appointment.serializers import AppointmentSerializer, BookingSerializer,BookingResponseSerializer 
+from rest_framework.response import Response
+
 from rest_framework.exceptions import PermissionDenied
+from rest_framework import mixins, permissions, viewsets
 
 
 class AppointmentViewSet(viewsets.ModelViewSet):
@@ -17,7 +19,15 @@ class AppointmentViewSet(viewsets.ModelViewSet):
        if user.role == 'BUSINESS_OWNER':
            return Appointment.objects.filter(business__owner=user)
        
+       if user.role == 'STAFF':
+          staff=user.staff_profile  
+          if staff.staff_role=="MANAGER" or staff.staff_role=="RECEPTIONIST":
+              return Appointment.objects.filter(business=staff.business)
+          if staff.staff_role=="STAFF":
+              return Appointment.objects.filter(appointment_services__staff = staff)       
        return Appointment.objects.none()
+   
+       
    
     def perform_create(self, serializer):
         business = serializer.validated_data["business"]
@@ -41,6 +51,22 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         created_by=self.request.user
     )
        
-       
+class BookingViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    serializer_class = BookingSerializer
+
+    def create(self, request, *args, **kwargs):
+        # 1. Validate the booking request
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # 2. Create the Customer, Appointment and AppointmentService
+        appointment = serializer.save()
+
+        # 3. Serialize the newly created Appointment
+        response_serializer = BookingResponseSerializer(appointment)
+
+        # 4. Return the successful response
+        return Response(response_serializer.data, status=201)
+
             
         

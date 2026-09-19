@@ -1,5 +1,5 @@
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny as AllowedAny
 from apps.business.models import Business
 from apps.business.serializers import BusinessSerializer
 
@@ -11,6 +11,7 @@ class BusinessViewSet(viewsets.ModelViewSet):
 
     # Only authenticated users can access these APIs
     permission_classes = [IsAuthenticated]
+    
 
     # Serializer used for validation and conversion
     serializer_class = BusinessSerializer

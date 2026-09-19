@@ -1,5 +1,6 @@
 from django.db import models
 from apps.business.models import Business
+from apps.users.models import User
 
 
 class Status(models.TextChoices):
@@ -18,8 +19,15 @@ class StaffRole(models.TextChoices):
     
 class Staff(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE,related_name="staff")
+    user = models.OneToOneField(
+    User,
+    on_delete=models.CASCADE,
+    related_name="staff_profile",
+    null=True,
+    blank=True,)
     staff_code=models.CharField(max_length=20,blank=True)
     first_name = models.CharField(max_length=100)
+    
     last_name = models.CharField(max_length=100)
     email = models.EmailField(blank=True,null=True)
     mobile_number = models.CharField(max_length=10)

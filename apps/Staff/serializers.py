@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from apps.Staff.models import Staff
+from apps.customer.models import Customer
+from apps.services.models import Service
 from datetime import date
 
 
@@ -65,6 +67,11 @@ class StaffSerializer(serializers.ModelSerializer):
         model = Staff
         fields = '__all__'
         read_only_fields = ["staff_code","created_at", "updated_at"]
+        
+class BookingSerializer(serializers.Serializer):
+    customer=serializers.PrimaryKeyRelatedField(queryset=Customer.objects.all())
+    service=serializers.PrimaryKeyRelatedField(queryset=Service.objects.all())
+    
         
     
     

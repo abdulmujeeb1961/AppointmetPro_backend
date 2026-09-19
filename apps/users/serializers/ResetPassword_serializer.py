@@ -2,8 +2,9 @@ from rest_framework import serializers
 from django.utils.http import urlsafe_base64_decode # for decoding the UID
 from django.utils.encoding import force_str
 from django.contrib.auth.tokens import default_token_generator # for verifying the token
-from django.contrib.auth.password_validation import validate_password # for validating the password This checks minimum length , common passwords , numeric passwords and similarity to username
+# from django.contrib.auth.password_validation import validate_password # for validating the password This checks minimum length , common passwords , numeric passwords and similarity to username
 from apps.users.models import User
+import re
 
 
 class ResetPasswordSerializer(serializers.Serializer):
@@ -19,12 +20,37 @@ class ResetPasswordSerializer(serializers.Serializer):
         token = attrs.get("token")
         new_password = attrs.get("new_password")
         confirm_password = attrs.get("confirm_password")
-
-        # Check whether both passwords match
-        if new_password != confirm_password:
+        
+        if len(new_password) < 8:
             raise serializers.ValidationError(
-                {"confirm_password": "Passwords do not match."}
+            {"new_password": "Password must be at least 8 characters long."} )
+                
+        
+        if re.search(r'[A-Z]', new_password) is None:
+            raise serializers.ValidationError(
+                {"new_password": "Password must contain at least one uppercase letter."}
             )
+            
+        if re.search(r'[a-z]', new_password) is None:
+            raise serializers.ValidationError(
+                {"new_password": "Password must contain at least one lowercase letter."}
+            )
+            
+        if re.search(r'\d', new_password) is None:
+            raise serializers.ValidationError(
+                {"new_password": "Password must contain at least one digit."}
+            )
+            
+        if re.search(r'[!@#$%^&*(),.?":{}|<>]', new_password) is None:
+            raise serializers.ValidationError(
+                {"new_password": "Password must contain at least one special character."}
+            )
+            
+        if new_password != confirm_password:
+             raise serializers.ValidationError(
+             {"confirm_password": "Passwords do not match."})
+        
+        
 
         # Decode the UID received from the email link
         try:
@@ -54,7 +80,7 @@ class ResetPasswordSerializer(serializers.Serializer):
             )
 
         # Apply Django's built-in password validators
-        validate_password(new_password, user)
+        # validate_password(new_password, user)
 
         # Verify that the token is valid and has not expired
         if not default_token_generator.check_token(user, token):

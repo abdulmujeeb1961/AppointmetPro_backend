@@ -6,6 +6,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True, write_only=True)
     new_password = serializers.CharField(required=True, write_only=True)
     confirm_password = serializers.CharField(required=True, write_only=True)
+    user=serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     def validate(self, attrs):
         user = self.context["request"].user

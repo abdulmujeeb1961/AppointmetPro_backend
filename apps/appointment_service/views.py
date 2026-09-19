@@ -10,9 +10,5 @@ class AppointmentServiceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = AppointmentService.objects.all()
 
-    def get_queryset(self):
-        user = self.request.user
-
-        return AppointmentService.objects.filter(
-            appointment__business__owner=user
-        )
+    
+   

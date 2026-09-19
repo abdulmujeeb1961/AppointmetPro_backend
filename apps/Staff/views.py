@@ -5,6 +5,7 @@ from .serializers import StaffSerializer
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
+from apps.working_hours.models import WorkingHours, DayofWeek
 
 
 class StaffViewSet(viewsets.ModelViewSet):
@@ -36,6 +37,21 @@ class StaffViewSet(viewsets.ModelViewSet):
         else:
             last_number = int(last_staff.staff_code[3:]) # [3:] means start from index 3. EMP003 willreturn 003 and int will return 3
             staff_code = f"EMP{last_number + 1:03d}" # :03 means keep 3 digits i.e 003,099,100 and so on.  So last number will become EMP004 if the previous code was EMP003
+            
+       
+            
+        
 
         # Save the new staff member with the generated staff code
-        serializer.save(staff_code=staff_code)
+        new_staff= serializer.save(staff_code=staff_code)
+        
+        days = [choice.value for choice in DayofWeek]
+
+        for day in days:
+            WorkingHours.objects.create(
+                staff=new_staff,
+                day_of_week=day,
+                start_time="09:00",
+                end_time="17:00",
+                is_working_day=True
+            )

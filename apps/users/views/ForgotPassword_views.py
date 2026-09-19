@@ -17,12 +17,14 @@ class ForgotPasswordView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data["email"]
+        # email = serializer.validated_data["email"]
+        # user = serializer.validated_data["user"]
 
         user = serializer.validated_data["user"]
+        user_email = user.email
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        reset_link = f"http://localhost:5173/reset-password/{uid}/{token}/"
+        reset_link = f"http://localhost:3000/#/authentication/resetpassword/{uid}/{token}/"
 
         send_mail(
             subject="Reset Your AppointmentPro Password",
@@ -41,7 +43,7 @@ Thank you,
 AppointmentPro Team
 """,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
+            recipient_list=[user_email],
             fail_silently=False,
         )
 

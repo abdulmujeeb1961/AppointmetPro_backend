@@ -36,9 +36,7 @@ class AppointmentServiceSerializer(serializers.ModelSerializer):
         scheduled_end = attrs.get("scheduled_end")
         actual_start = attrs.get("actual_start")
         actual_end = attrs.get("actual_end")
-        print(staff.pk)
-        print(service.pk)
-        print(appointment.pk)
+        
         
 
         if scheduled_start >= scheduled_end:

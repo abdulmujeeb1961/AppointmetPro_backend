@@ -12,7 +12,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
     
     # This method is used to filter the business and services based on the logged in user.  For example the logged in user has two businesses, Gym and Salon.  If he logs in to the Gym business, he will only see the services of the Gym business.  In the service table there is no owner field, it is in Business table. So to access the owner we have to write business__owner.
     def get_queryset(self):
-        return Service.objects.filter(business__owner=self.request.user)
+        return Service.objects.filter(business__owner=self.request.user).order_by("business__business_name","service_name")
             
        
         

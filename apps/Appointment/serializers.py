@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from django.db.models import Q
 from django.db import transaction
 from apps.Appointment.models import BookingSource
+from apps.customer.models import Customer
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
@@ -24,15 +25,21 @@ class AppointmentSerializer(serializers.ModelSerializer):
     def validate_appointment_date(self, value):
 
         if value < date.today():
-            raise serializers.ValidationError("Appointment date cannot be in the past.")
+            raise serializers.ValidationError(
+                "Appointment date cannot be in the past."
+            )
+
         return value
 
     def validate_notes(self, value):
+
         if value:
             value = value.strip()
+
         return value
 
     def validate(self, attrs):
+
         business = attrs.get("business")
         customer = attrs.get("customer")
 
@@ -49,10 +56,17 @@ class AppointmentSerializer(serializers.ModelSerializer):
         return attrs
 
 
-
-
-
 class BookingSerializer(serializers.Serializer):
+    class BookingResponseSerializer(serializers.ModelSerializer):
+
+     class Meta:
+        model = Appointment
+        fields = [
+            "appointment_code",
+            "appointment_date",
+            "booking_source",
+            "status",
+        ]
 
     service = serializers.PrimaryKeyRelatedField(
         queryset=Service.objects.all()
@@ -126,7 +140,8 @@ class BookingSerializer(serializers.Serializer):
             first_name = attrs.get("first_name")
             mobile_number = attrs.get("mobile_number")
 
-            # For businesses such as clinics/dentists, these are mandatory.
+            # For businesses such as clinics/dentists,
+            # these are mandatory.
             if not first_name or not mobile_number:
                 raise serializers.ValidationError(
                     "First Name and Mobile number details are required."
@@ -168,7 +183,10 @@ class BookingSerializer(serializers.Serializer):
         # start_time + service duration = end_time
 
         end_datetime = (
-            datetime.combine(appointment_date, start_time)
+            datetime.combine(
+                appointment_date,
+                start_time
+            )
             + timedelta(minutes=service.duration_minutes)
         )
 
@@ -176,6 +194,7 @@ class BookingSerializer(serializers.Serializer):
 
         # These datetime values are required for the
         # double-booking/overlap check.
+
         new_start = datetime.combine(
             appointment_date,
             start_time
@@ -199,10 +218,7 @@ class BookingSerializer(serializers.Serializer):
                 )
 
             # Staff must be assigned to provide this service.
-            if not staff.services.filter(
-                pk=service.pk
-            ).exists():
-
+            if not staff.services.filter(pk=service.pk).exists():
                 raise serializers.ValidationError(
                     "This staff member is not assigned to provide this service."
                 )
@@ -240,7 +256,6 @@ class BookingSerializer(serializers.Serializer):
                 start_time < weekday.start_time
                 or end_time > weekday.end_time
             ):
-
                 raise serializers.ValidationError(
                     "This staff member is not working during this time."
                 )
@@ -258,7 +273,6 @@ class BookingSerializer(serializers.Serializer):
 
                 # Full-day leave means the entire day is unavailable.
                 if staffleave.leave_type == "FULL_DAY":
-
                     raise serializers.ValidationError(
                         "This staff member is on leave on this day."
                     )
@@ -271,7 +285,6 @@ class BookingSerializer(serializers.Serializer):
                         start_time < staffleave.end_time
                         and end_time > staffleave.start_time
                     ):
-
                         raise serializers.ValidationError(
                             "This staff member is on leave during this time."
                         )
@@ -295,7 +308,6 @@ class BookingSerializer(serializers.Serializer):
             )
 
             if staff_appointment:
-
                 raise serializers.ValidationError(
                     "This staff member has an appointment during this time."
                 )
@@ -308,12 +320,16 @@ class BookingSerializer(serializers.Serializer):
 
             # Find active and bookable staff who can provide
             # the requested service.
-            candidate_staff = Staff.objects.filter(
-                status="ACTIVE",
-                is_bookable=True,
-                services=service,
-                business=business,
-            ).distinct()
+
+            candidate_staff = (
+                Staff.objects.filter(
+                    status="ACTIVE",
+                    is_bookable=True,
+                    services=service,
+                    business=business,
+                )
+                .distinct()
+            )
 
             available_staff = None
 
@@ -383,6 +399,7 @@ class BookingSerializer(serializers.Serializer):
 
                 # If this staff member already has an overlapping
                 # appointment, move to the next staff member.
+
                 if staff_appointment:
                     continue
 
@@ -398,44 +415,103 @@ class BookingSerializer(serializers.Serializer):
             # -----------------------------------------------------
 
             if available_staff is None:
-
                 raise serializers.ValidationError(
                     "No staff member is available for the selected time."
                 )
 
             # Save the automatically selected staff member
             # into attrs so that the create() method can use it.
+
             attrs["staff"] = available_staff
 
         # Return validated data.
         return attrs
-    
 
-        @transaction.atomic
-        def create(self, validated_data):
-            service=validated_data.get("service")
-            staff=validated_data.get("staff")
-            appointment_date=validated_data.get("appointment_date")
-            start_time=validated_data.get("start_time")
-            first_name=validated_data.get("first_name")
-            last_name=validated_data.get("last_name")   
-            mobile_number=validated_data.get("mobile_number")
-            email=validated_data.get("email")
-            business=service.business
-            end_datetime = (datetime.combine(appointment_date, start_time)
-            + timedelta(minutes=service.duration_minutes))
+    @transaction.atomic
+    def create(self, validated_data):
 
-            end_time = end_datetime.time()
-           
+        service = validated_data.get("service")
+        staff = validated_data.get("staff")
+        appointment_date = validated_data.get("appointment_date")
+        start_time = validated_data.get("start_time")
+        first_name = validated_data.get("first_name")
+        last_name = validated_data.get("last_name")
+        mobile_number = validated_data.get("mobile_number")
+        email = validated_data.get("email")
+
+        business = service.business
+
+        # Calculate appointment end time.
+        end_datetime = (
+            datetime.combine(
+                appointment_date,
+                start_time
+            )
+            + timedelta(minutes=service.duration_minutes)
+        )
+
+        end_time = end_datetime.time()
+
+        # Find existing customer.
+        customer = Customer.objects.filter(
+            business=business,
+            mobile_number=mobile_number
+        ).first()
+
+        # Create customer if not found.
+        if not customer:
+            customer = Customer.objects.create(
+                business=business,
+                first_name=first_name,
+                mobile_number=mobile_number,
+                last_name=last_name,
+                email=email,
+            )
             
-            customer=Customer.objects.filter(business=business,mobile_number=mobile_number).first()
-            
-            if not customer:
-                customer=Customer.objects.create(business=business,first_name=first_name,mobile_number=mobile_number,last_name=last_name,email=email)
-            
-            appointment=Appointment.objects.create(business=business,customer=customer,appointment_date=appointment_date,booking_source=BookingSource.ONLINE,created_by=None)
-            
-            appointment_service=AppointmentService.objects.create(appointment=appointment,service=service,staff=staff,scheduled_start=datetime.combine(appointment_date,start_time),scheduled_end=datetime.combine(appointment_date,end_time))
-            return appointment
+        last_appointment = Appointment.objects.filter(
+        business=business).order_by("-id").first()
+
+        if not last_appointment:
+         appointment_code = "APT001"
+        else:
             
             
+            last_number = int(last_appointment.appointment_code[3:])
+            appointment_code = f"APT{last_number + 1:03d}"
+
+        # Create appointment.
+        appointment = Appointment.objects.create(
+            business=business,
+            customer=customer,
+            appointment_date=appointment_date,
+            appointment_code=appointment_code,
+            booking_source=BookingSource.ONLINE,
+            created_by=None,
+        )
+
+        # Create appointment service.
+        appointment_service = AppointmentService.objects.create(
+            appointment=appointment,
+            service=service,
+            staff=staff,
+            scheduled_start=datetime.combine(
+                appointment_date,
+                start_time
+            ),
+            scheduled_end=datetime.combine(
+                appointment_date,
+                end_time
+            ),
+        )
+
+        return appointment
+class BookingResponseSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Appointment
+        fields = [
+            "appointment_code",
+            "appointment_date",
+            "booking_source",
+            "status",
+        ]

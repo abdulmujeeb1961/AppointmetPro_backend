@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import F, Q
 
 
 class LeaveType(models.TextChoices):
@@ -8,16 +9,19 @@ class LeaveType(models.TextChoices):
 class Status(models.TextChoices):
     APPROVED = "APPROVED","Approved",
     CANCELLED = "CANCELLED", "Cancelled"
+    PENDING = "PENDING", "Pending"
 
 
 class StaffLeave(models.Model):
     staff = models.ForeignKey('Staff.Staff', on_delete=models.CASCADE,related_name="staff_leaves")
-    leave_date = models.DateField()
+    
+    from_date = models.DateField()
+    to_date = models.DateField()
     leave_type = models.CharField(max_length=20, choices=LeaveType.choices, default=LeaveType.FULL_DAY)
     start_time = models.TimeField(null=True, blank=True)
     end_time = models.TimeField(null=True, blank=True)
     reason = models.TextField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.APPROVED)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -26,4 +30,10 @@ class StaffLeave(models.Model):
         return f"{self.staff.first_name} {self.staff.last_name}"
     
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(from_date__lte=F("to_date")),
+                name="from_date_not_greater_than_to_date",
+            ),
+        ]

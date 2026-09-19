@@ -3,6 +3,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
+
 SUPER_ADMIN = 'SUPER_ADMIN'
 BUSINESS_OWNER='BUSINESS_OWNER'
 STAFF = 'STAFF'
